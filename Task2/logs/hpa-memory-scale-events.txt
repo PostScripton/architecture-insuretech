@@ -1,0 +1,41 @@
+HPA scaletestapp-hpa (memory, target 80%) - события масштабирования под нагрузкой locust
+
+$ kubectl describe hpa scaletestapp-hpa
+Name:                                                     scaletestapp-hpa
+Reference:                                                Deployment/scaletestapp
+Metrics:                                                  ( current / target )
+  resource memory on pods  (as a percentage of request):  92% (28504Ki) / 80%
+Min replicas:                                             1
+Max replicas:                                             10
+Deployment pods:                                          1 current / 2 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    SucceededRescale    the HPA controller was able to update the target scale to 2
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from memory resource utilization (percentage of request)
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type    Reason             Age   From                       Message
+  ----    ------             ----  ----                       -------
+  Normal  SuccessfulRescale  14s   horizontal-pod-autoscaler  New size: 2; reason: memory resource utilization (percentage of request) above target
+
+$ kubectl get events (deployment/replicaset/HPA)
+Normal   ScalingReplicaSet   deployment/scaletestapp                    Scaled up replica set scaletestapp-64b6d8f966 from 1 to 2
+Normal   SuccessfulCreate    replicaset/scaletestapp-64b6d8f966         Created pod: scaletestapp-64b6d8f966-l8gmh
+Normal   SuccessfulRescale   horizontalpodautoscaler/scaletestapp-hpa   New size: 2; reason: memory resource utilization (percentage of request) above target
+Normal   Started             pod/scaletestapp-64b6d8f966-l8gmh          Container started
+
+Динамика по времени (kubectl get hpa, при работающем locust -u 400 -r 20):
+02:52:31   memory: 81%/80%   REPLICAS 1
+02:53:11   memory: 92%/80%   REPLICAS 1 -> HPA инициировал rescale
+02:53:25   memory: 92%/80%   REPLICAS 2
+
+$ kubectl get pods -l app=scaletestapp -o wide (после rescale)
+NAME                            READY   STATUS    RESTARTS      AGE   IP              NODE
+scaletestapp-64b6d8f966-l8gmh   1/1     Running   0             14s   10.244.120.72   minikube
+scaletestapp-64b6d8f966-tk2vj   1/1     Running   1 (18m ago)   30m   10.244.120.71   minikube
+
+Вывод: HPA с целевой утилизацией памяти 80% не реагирует моментально при пересечении порога
+из-за встроенного tolerance (по умолчанию 10%) - масштабирование срабатывает, когда фактическая
+утилизация превышает примерно 88%. Под нагрузкой locust (до 400 пользователей) утилизация памяти
+пода выросла с ~20% в состоянии покоя до 92%, после чего HPA увеличил число реплик с 1 до 2.
