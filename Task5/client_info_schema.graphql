@@ -1,0 +1,43 @@
+"""
+Клиент сервиса client-info.
+Общий атрибутивный состав карточки клиента большой (порядка 500 полей),
+поэтому связанные данные (документы, родственники) вынесены в отдельные
+типы и запрашиваются только тогда, когда это нужно потребителю.
+"""
+type Client {
+  id: ID!
+  name: String
+  age: Int
+  documents: [Document!]!
+  relatives: [Relative!]!
+}
+
+"""
+Документ клиента (паспорт, СНИЛС и другие).
+"""
+type Document {
+  id: ID!
+  type: String
+  number: String
+  issueDate: String
+  expiryDate: String
+}
+
+"""
+Родственник клиента.
+"""
+type Relative {
+  id: ID!
+  relationType: String
+  name: String
+  age: Int
+}
+
+type Query {
+  """
+  Возвращает клиента по ID.
+  Поля documents и relatives не резолвятся, если потребитель их не запросил -
+  это заменяет отдельные REST-ресурсы /clients/{id}/documents и /clients/{id}/relatives.
+  """
+  client(id: ID!): Client
+}
