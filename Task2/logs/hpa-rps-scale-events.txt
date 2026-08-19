@@ -1,0 +1,39 @@
+Name:                                  scaletestapp-hpa
+Namespace:                             default
+Labels:                                <none>
+Annotations:                           <none>
+CreationTimestamp:                     Sun, 26 Jul 2026 02:25:10 +0300
+Reference:                             Deployment/scaletestapp
+Metrics:                               ( current / target )
+  "http_requests_per_second" on pods:  495683m / 20
+Min replicas:                          1
+Max replicas:                          10
+Deployment pods:                       10 current / 10 desired
+Conditions:
+  Type            Status  Reason            Message
+  ----            ------  ------            -------
+  AbleToScale     True    ReadyForNewScale  recommended size matches current size
+  ScalingActive   True    ValidMetricFound  the HPA was able to successfully calculate a replica count from pods metric http_requests_per_second
+  ScalingLimited  True    TooManyReplicas   the desired replica count is more than the maximum replica count
+Events:
+  Type     Reason                        Age    From                       Message
+  ----     ------                        ----   ----                       -------
+  Normal   SuccessfulRescale             16m    horizontal-pod-autoscaler  New size: 2; reason: memory resource utilization (percentage of request) above target
+  Warning  FailedGetResourceMetric       7m56s  horizontal-pod-autoscaler  failed to get memory utilization: unable to get metrics for resource memory: no metrics returned from resource metrics API
+  Warning  FailedComputeMetricsReplicas  7m56s  horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get memory resource metric value: failed to get memory utilization: unable to get metrics for resource memory: no metrics returned from resource metrics API
+  Normal   SuccessfulRescale             7m41s  horizontal-pod-autoscaler  New size: 2; reason:
+  Normal   SuccessfulRescale             86s    horizontal-pod-autoscaler  New size: 4; reason: pods metric http_requests_per_second above target
+  Normal   SuccessfulRescale             71s    horizontal-pod-autoscaler  New size: 8; reason: pods metric http_requests_per_second above target
+  Normal   SuccessfulRescale             56s    horizontal-pod-autoscaler  New size: 10; reason: pods metric http_requests_per_second above target
+
+Динамика по времени (kubectl get hpa, при работающем locust -u 200 -r 20):
+03:07:39   0/20              REPLICAS 2
+03:08:27   209426m/20 (~209 rps)   REPLICAS 2 -> 4
+03:08:58   298939m/20 (~299 rps)   REPLICAS 4 -> 8
+03:09:16   343697m/20 (~344 rps)   REPLICAS 8 -> 10
+03:09:28   469345m/20 (~469 rps)   REPLICAS 10 (упёрлись в maxReplicas, ScalingLimited=TooManyReplicas)
+
+Вывод: HPA c пользовательской метрикой http_requests_per_second (через Prometheus Adapter,
+target AverageValue=20 rps/под) корректно реагирует на рост RPS - масштабирование прошло
+последовательно 2 -> 4 -> 8 -> 10 реплик по мере роста суммарного RPS под нагрузкой locust
+(200 пользователей). Дальнейшее масштабирование ограничено maxReplicas=10.
